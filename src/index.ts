@@ -1,6 +1,7 @@
-import { Elysia, Static } from 'elysia'
+import { Elysia, NotFoundError, Static, t } from 'elysia'
 import { node } from '@elysiajs/node'
-import { CreateProductDTO, ProductDTO } from './models'
+import { CreateProductDTO, ProductDTO, UpdateProductDTO } from './models'
+import { findMaxId } from './helpers'
 
 const store = new Elysia().state({
   products: [] as Static<typeof ProductDTO>[],
@@ -13,19 +14,29 @@ new Elysia({ adapter: node() })
       .get('/', ({ store }) => store.products)
       .post(
         '/',
-        ({ store, body }) => {
-          const maxId = store.products.reduce(
-            (max, { id }) => (id > max ? id : max),
-            0
-          )
-          const newProduct = {
-            ...body,
-            id: maxId + 1,
-          }
-          store.products.push(newProduct)
-          return newProduct
-        },
+        ({ store, body }) =>
+          store.products[
+            store.products.push({
+              ...body,
+              id: findMaxId(store.products) + 1,
+            }) - 1
+          ],
         { body: CreateProductDTO, response: ProductDTO }
+      )
+      .patch(
+        '/:id',
+        ({ store, params, body }) => {
+          const product = store.products.find(
+            (product) => product.id === Number(params.id)
+          )
+          if (!product) throw new NotFoundError('Product not found')
+          return Object.assign(product, body)
+        },
+        {
+          params: t.Object({ id: t.Integer() }),
+          body: UpdateProductDTO,
+          response: ProductDTO,
+        }
       )
   )
   .listen(3000, ({ hostname, port }) => {
