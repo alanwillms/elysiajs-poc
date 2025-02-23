@@ -1,5 +1,6 @@
 import { Elysia, NotFoundError, Static, t } from 'elysia'
 import { node } from '@elysiajs/node'
+import { swagger } from '@elysiajs/swagger'
 import { CreateProductDTO, ProductDTO, UpdateProductDTO } from './models'
 import { findMaxId } from './helpers'
 
@@ -8,6 +9,7 @@ const store = new Elysia().state({
 })
 
 new Elysia({ adapter: node() })
+  .use(swagger({ path: '/docs' }))
   .use(store)
   .group('/products', (group) =>
     group
@@ -23,6 +25,20 @@ new Elysia({ adapter: node() })
           ],
         { body: CreateProductDTO, response: ProductDTO }
       )
+      .get(
+        '/:id',
+        ({ store, params }) => {
+          const product = store.products.find(
+            (product) => product.id === Number(params.id)
+          )
+          if (!product) throw new NotFoundError('Product not found')
+          return product
+        },
+        {
+          params: t.Object({ id: t.Integer() }),
+          response: ProductDTO,
+        }
+      )
       .patch(
         '/:id',
         ({ store, params, body }) => {
@@ -35,6 +51,20 @@ new Elysia({ adapter: node() })
         {
           params: t.Object({ id: t.Integer() }),
           body: UpdateProductDTO,
+          response: ProductDTO,
+        }
+      )
+      .delete(
+        '/:id',
+        ({ store, params }) => {
+          const index = store.products.findIndex(
+            (product) => product.id === Number(params.id)
+          )
+          if (index === -1) throw new NotFoundError('Product not found')
+          return store.products.splice(index, 1)[0]
+        },
+        {
+          params: t.Object({ id: t.Integer() }),
           response: ProductDTO,
         }
       )
