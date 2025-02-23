@@ -1,70 +1,81 @@
-import { Elysia, NotFoundError, Static, t } from 'elysia'
+import { Elysia, NotFoundError, t } from 'elysia'
 import { node } from '@elysiajs/node'
 import { swagger } from '@elysiajs/swagger'
-import { CreateProductDTO, ProductDTO, UpdateProductDTO } from './models'
-import { findMaxId } from './helpers'
+import {
+  CreateProductDTO,
+  ProductDTO,
+  ProductQueryParamDto,
+  UpdateProductDTO,
+} from './models'
+import { PrismaClient } from '@prisma/client'
 
-const store = new Elysia().state({
-  products: [] as Static<typeof ProductDTO>[],
-})
+const db = new PrismaClient()
 
 new Elysia({ adapter: node() })
   .use(swagger({ path: '/docs' }))
-  .use(store)
   .group('/products', (group) =>
     group
-      .get('/', ({ store }) => store.products)
-      .post(
-        '/',
-        ({ store, body }) =>
-          store.products[
-            store.products.push({
-              ...body,
-              id: findMaxId(store.products) + 1,
-            }) - 1
-          ],
-        { body: CreateProductDTO, response: ProductDTO }
-      )
+      .onError((error) => {
+        if (error.code === ('P2002' as unknown)) {
+          error.set.status = 422
+          return { error: 'Name must be unique' }
+        }
+        if (error.code === ('P2025' as unknown)) {
+          error.set.status = 404
+          return { error: 'Product not found' }
+        }
+        return error
+      })
+      .get('/', async () => db.product.findMany(), {
+        response: t.Array(ProductDTO),
+      })
+      .post('/', async ({ body }) => db.product.create({ data: body }), {
+        body: CreateProductDTO,
+        response: ProductDTO,
+      })
       .get(
         '/:id',
-        ({ store, params }) => {
-          const product = store.products.find(
-            (product) => product.id === Number(params.id)
-          )
+        async ({ params }) => {
+          const product = await db.product.findFirstOrThrow({
+            where: { id: params.id },
+          })
           if (!product) throw new NotFoundError('Product not found')
           return product
         },
         {
-          params: t.Object({ id: t.Integer() }),
+          params: ProductQueryParamDto,
           response: ProductDTO,
         }
       )
       .patch(
         '/:id',
-        ({ store, params, body }) => {
-          const product = store.products.find(
-            (product) => product.id === Number(params.id)
-          )
-          if (!product) throw new NotFoundError('Product not found')
-          return Object.assign(product, body)
+        async ({ params, body }) => {
+          await db.product.findFirstOrThrow({
+            select: { id: true },
+            where: { id: params.id },
+          })
+          return db.product.update({
+            where: { id: params.id },
+            data: body,
+          })
         },
         {
-          params: t.Object({ id: t.Integer() }),
+          params: ProductQueryParamDto,
           body: UpdateProductDTO,
           response: ProductDTO,
         }
       )
       .delete(
         '/:id',
-        ({ store, params }) => {
-          const index = store.products.findIndex(
-            (product) => product.id === Number(params.id)
-          )
-          if (index === -1) throw new NotFoundError('Product not found')
-          return store.products.splice(index, 1)[0]
+        async ({ params }) => {
+          await db.product.findFirstOrThrow({
+            select: { id: true },
+            where: { id: params.id },
+          })
+          return db.product.delete({ where: { id: params.id } })
         },
         {
-          params: t.Object({ id: t.Integer() }),
+          params: ProductQueryParamDto,
           response: ProductDTO,
         }
       )

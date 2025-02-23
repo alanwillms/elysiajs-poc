@@ -1,15 +1,20 @@
 {
-	"scripts": {
-		"dev": "tsx watch src/index.ts",
-		"build": "tsc src/index.ts --outDir dist",
-		"start": "NODE_ENV=production node dist/index.js"
-	},
-	"dependencies": {
-		"@elysiajs/node": "^1.2.6",
-		"@elysiajs/swagger": "^1.2.2",
-		"@types/node": "^22.13.5",
-		"elysia": "^1.2.21",
-		"tsx": "^4.19.3",
-		"typescript": "^5.7.3"
-	}
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc src/index.ts --outDir dist",
+    "start": "NODE_ENV=production node dist/index.js",
+    "prisma": "prisma"
+  },
+  "dependencies": {
+    "@elysiajs/node": "^1.2.6",
+    "@elysiajs/swagger": "^1.2.2",
+    "@prisma/client": "6.4.1",
+    "@types/node": "^22.13.5",
+    "elysia": "^1.2.21",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "prisma": "^6.4.1"
+  }
 }
